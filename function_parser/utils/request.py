@@ -1,10 +1,13 @@
+import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
 from typing import Iterable, Iterator, Literal
 
-from requests import Response, Session
 from bs4 import BeautifulSoup
+from requests import HTTPError, Response, Session
 
+logger = logging.getLogger(__name__)
 
 class Request:
     session: Session
@@ -22,12 +25,24 @@ class Request:
         for attempt in range(max_attempts):
             try:
                 response = self.session.get(url, headers=headers)
-                print(f"Status {response.status_code} on {url}")
+                logger.debug(f"Status {response.status_code} on {url}")
                 response.raise_for_status()
                 return response
+            except HTTPError as ex:
+                logger.debug(ex)
+                remaining_requests = int(response.headers.get("X-RateLimit-Remaining"))
+                if response.status_code == 403 and not remaining_requests:
+                    now = time.time()
+                    release_timestamp = int(response.headers.get("X-RateLimit-Reset"))
+                    remaining_time = release_timestamp - now
+                    release_time = datetime.fromtimestamp(release_timestamp)
+                    logger.info(
+                        f"API limit exceeded waiting until {release_time.strftime('%H:%M:%S')}"
+                    )
+                    time.sleep(remaining_time + 5)
             except Exception as ex:
-                print(ex)
-                print(f"Waiting {sleep_time}.\nAttempt {attempt} / {max_attempts}")
+                logger.warning(ex)
+                logger.warning(f"Waiting {sleep_time}.\nAttempt {attempt} / {max_attempts}")
                 time.sleep(sleep_time)
 
     def soup_request(

@@ -1,13 +1,14 @@
+import logging
 import ast
-from ast import Attribute
+from ast import Attribute, ClassDef, IfExp, Import, ImportFrom, Name, Subscript, expr
 from ast import Call as AstCall
-from ast import ClassDef, IfExp, Import, ImportFrom, Name, Subscript, expr
 
-from models.call import Call
-from models.file import File
-from models.folder import Folder
-from models.repository import Repository
+from .models.call import Call
+from .models.file import File
+from .models.folder import Folder
+from .models.repository import Repository
 
+logger = logging.getLogger(__name__)
 
 class RepoParser:
     def __init__(self, repository: Repository) -> None:
@@ -109,11 +110,11 @@ class RepoParser:
                 calls.append(Call(".".join(full_path), call.lineno, file))
         return calls
 
-    def get_repo_calls(self) -> list[Call]:
-        all_calls = []
+    def get_repo_calls(self) -> set[Call]:
+        logger.info(f"Parsing {len(self.file_names)} files from {self.repository.name}")
+        all_calls = set()
         for file in self.repository.directory.walk(File):
-            print(f"Reading {file.name}  --> {file.web_url}")
+            logger.debug(f"Reading {file.name}  --> {file.web_url}")
             file_calls = self.get_file_calls(file)
-            if file_calls:
-                all_calls.extend(file_calls)
+            all_calls.update(call for call in file_calls if call not in all_calls)
         return all_calls

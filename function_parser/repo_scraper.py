@@ -1,11 +1,13 @@
 import re
+import logging
 from typing import Iterator
 
-from models.file import File
-from models.folder import Folder
-from models.repository import Repository
-from utils.request import Request
+from function_parser.models.file import File
+from function_parser.models.folder import Folder
+from function_parser.models.repository import Repository
+from function_parser.utils.request import Request
 
+logger = logging.getLogger(__name__)
 
 class RepoScraper:
     language: str
@@ -13,15 +15,16 @@ class RepoScraper:
     repository_regex = re.compile(r"REPOSITORY_NAME_HEADING")
     headers = {
         "Accept": "application/vnd.github+json",
-        "Authorization": "Bearer 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",
+        "Authorization": "Bearer ",
     }
-    file_extensions = {"Python": "py"}
 
-    def __init__(self, language: str):
+    def __init__(self, api_token: str):
         self.session = Request(self.headers)
-        self.language = language
+        self.headers['Authorization'] += api_token
 
     def get_repository(self, repo_url: str) -> Repository | None:
+        #https://api.github.com/repos/home-assistant/core
+        logger.info(f"Scraping {repo_url.split('/')[-1]}")
         res = self.session.json_request(repo_url)
         if res:
             contents_folder = self._get_repo_files(repo_url)
@@ -42,7 +45,7 @@ class RepoScraper:
         paginate = True
         page = 1
         while paginate:
-            url = f"https://github.com/topics/{self.language.lower()}?page={page}"
+            url = f"https://github.com/topics/python?page={page}"
             soup = self.session.soup_request(url, {})
             headers = soup.select("article h3")
             repo_anchors = (
@@ -67,7 +70,7 @@ class RepoScraper:
             {
                 file.data_url
                 for file in folder.walk(File)
-                if file.name.endswith(self._get_file_extension())
+                if file.name.endswith('.py')
             },
             "TEXT",
         )
@@ -83,9 +86,7 @@ class RepoScraper:
         files = []
         items = self.session.json_request(folder_url)
         for item in items or []:
-            if item["type"] == "file" and item["name"].endswith(
-                self._get_file_extension()
-            ):
+            if item["type"] == "file" and item["name"].endswith('.py'):
                 new_file = File(
                     item["name"],
                     item["sha"],
@@ -100,9 +101,3 @@ class RepoScraper:
         folder_name = folder_name or folder_url.split("?")[0].split("/")[-1]
         return Folder(folder_name, files)
 
-    def _get_file_extension(self) -> str:
-        return self._language_to_extension(self.language)
-
-    @classmethod
-    def _language_to_extension(cls, language: str) -> str:
-        return cls.file_extensions[language]

@@ -1,6 +1,8 @@
 import logging
 import os
 
+from dotenv import load_dotenv
+
 from config import set_logger
 from function_parser.db.dynamo import Dynamo
 from function_parser.repo_parser import RepoParser
@@ -11,16 +13,17 @@ set_logger()
 logger = logging.getLogger(__name__)
 
 # ENVS
+load_dotenv()
 github_token = os.getenv("GITHUBTOKEN")
+repo_count = int(os.getenv("REPOCOUNT", 0))
 
 if __name__ == "__main__":
     database = Dynamo()
     scraper = RepoScraper(github_token)
 
-    REPOCOUNT = 3
-    for i, repo in enumerate(scraper.get_top_repos(REPOCOUNT), 1):
+    for i, repo in enumerate(scraper.get_top_repos(repo_count), 1):
         # TODO SEGUNDA TABLA CON REPOS PARA EVITAR REPETIRLOS
         repo_parser = RepoParser(repo)
         repo_calls = repo_parser.get_repo_calls()
         database.call_table.write_batch(repo_calls)
-        logging.info(f"{'#'*6} {i} / {REPOCOUNT} repositories {'#'*6}")
+        logging.info(f"{'#'*9} {i} / {repo_count} repositories {'#'*9}")

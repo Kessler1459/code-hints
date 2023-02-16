@@ -91,6 +91,7 @@ class Call:
                        table was created.
         """
         try:
+            logger.info(f"Writing batch with {len(calls)} calls")
             with self.table.batch_writer() as writer:
                 for call in calls:
                     dto = CallDTO(
@@ -101,7 +102,7 @@ class Call:
                         call.file.web_url,
                     )
                     writer.put_item(Item=vars(dto))
-            logger.info(f"Inserted {len(calls)} calls")
+            logger.info("Inserted batch!")
         except ClientError as err:
             logger.critical(
                 "Couldn't load data into table %s. Here's why: %s: %s",

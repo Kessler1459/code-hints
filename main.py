@@ -22,7 +22,6 @@ if __name__ == "__main__":
     scraper = RepoScraper(github_token)
 
     for i, repo in enumerate(scraper.get_top_repos(repo_count), 1):
-        # TODO SEGUNDA TABLA CON REPOS PARA EVITAR REPETIRLOS
         repo_parser = RepoParser(repo)
         repo_calls = repo_parser.get_repo_calls()
         database.call_table.write_batch(repo_calls)

@@ -59,14 +59,15 @@ class RepoScraper:
             repo_urls = {
                 "https://api.github.com/repos" + a["href"] for a in repo_anchors
             }
+            if not repo_urls:
+                break
             for url in repo_urls:
                 yield self.get_repository(url)
                 if repo_count and repo_count == max_results:
                     paginate = False
                     break
                 repo_count += 1
-            else:
-                break
+            page += 1
 
     def _get_repo_files(
         self, html_url: str, repo_url: str, default_branch: str

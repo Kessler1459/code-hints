@@ -26,3 +26,7 @@ dmypy.json
 
 pickle
 *.db
+
+*.egg-info/
+dist/
+docker/

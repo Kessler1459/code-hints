@@ -7,20 +7,35 @@ from function_parser.db.call import Call
 
 logger = logging.getLogger(__name__)
 
+CALLTABLENAME = "calls"
+
+
 class Dynamo:
     call_table: Call
 
-    def __init__(self) -> None:
-        logger.info('Connecting DB')
+    def __init__(
+        self,
+        aws_region: str,
+        aws_access_key_id: str,
+        aws_secret_access_key: str,
+        aws_endpoint: str,
+        init_tables=False
+    ) -> None:
         self.resource = boto3.resource(
             "dynamodb",
-            region_name="us-east-1",
-            aws_access_key_id="AKIAIOSFODNN7EXAMPLE",
-            aws_secret_access_key="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-            endpoint_url='http://localhost:8000'
+            region_name=aws_region,
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            endpoint_url=aws_endpoint or None,
         )
-        CALLTABLENAME = 'calls'
-        self.call_table = Call(self.resource, CALLTABLENAME, self.exists(CALLTABLENAME))
+        self.call_table = Call(self.resource, CALLTABLENAME)
+        if init_tables:
+            logger.info("Starting DB")
+            self.init_tables()
+
+    def init_tables(self):
+        if not self.exists(CALLTABLENAME):
+            self.call_table.create_table(CALLTABLENAME)
 
     def list_tables(self) -> list[str]:
         """

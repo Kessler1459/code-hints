@@ -1,5 +1,7 @@
 import logging
 import ast
+import builtins
+
 from ast import Attribute, ClassDef, IfExp, Import, ImportFrom, Name, Subscript, expr
 from ast import Call as AstCall
 
@@ -14,6 +16,7 @@ class RepoParser:
     def __init__(self, repository: Repository) -> None:
         self.repository = repository
         self.folder_names = {item.name for item in repository.directory.walk(Folder)}
+        self.builtins = {name for name, call in vars(builtins).items() if getattr(call, '__call__', None)}
         self.file_names = {
             item.name for item in repository.directory.walk(File) if item.data
         }
@@ -69,6 +72,8 @@ class RepoParser:
                 if isinstance(import_, ImportFrom):
                     call_path = import_.module.split(".") + call_path
                 return call_path
+        if first_call in self.builtins:
+            return call_path
 
     def _is_local(self, path: list[str]) -> bool:
         """
@@ -76,6 +81,15 @@ class RepoParser:
         """
         package = path[0]
         return package in self.folder_names or package in self.file_names
+
+    def get_call_full_path(self, call: Call) -> list[str] | None:
+        function_path = self._get_call_path(call)
+        full_path = None
+        if function_path:
+            full_path = self._get_import_path(
+                call, function_path, self.file_classes, self.file_imports
+            )
+        return full_path
 
     def get_file_calls(self, file: File) -> list[Call]:
         """
@@ -95,17 +109,13 @@ class RepoParser:
                 isinstance(x, (Import)) or isinstance(x, (ImportFrom)) and x.level == 0
             )
 
-        file_imports = [node for node in ast.walk(module) if is_import(node)]
-        file_classes = [node for node in ast.walk(module) if isinstance(node, ClassDef)]
+        self.file_imports = [node for node in ast.walk(module) if is_import(node)]
+        self.file_classes = [node for node in ast.walk(module) if isinstance(node, ClassDef)]
         function_calls = (
             node for node in ast.walk(module) if isinstance(node, AstCall)
         )
         for call in function_calls:
-            function_path = self._get_call_path(call)
-            if function_path:
-                full_path = self._get_import_path(
-                    call, function_path, file_classes, file_imports
-                )
+            full_path = self.get_call_full_path(call)
             if full_path and not self._is_local(full_path):
                 calls.append(Call(".".join(full_path), call.lineno, file))
         return calls

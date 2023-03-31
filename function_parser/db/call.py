@@ -1,7 +1,7 @@
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-from function_parser.models.call import Call as ModelCall
+from models.call import Call as ModelCall
 
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class CallDTO:
     id: str
-    path: str
+    path_: str
     line_number: int
     file_name: str
     url: str
@@ -38,11 +38,11 @@ class Call:
             self.table = self.dyn_resource.create_table(
                 TableName=self.table_name,
                 KeySchema=[
-                    {"AttributeName": "path", "KeyType": "HASH"},  # Partition key
+                    {"AttributeName": "path_", "KeyType": "HASH"},  # Partition key
                     {"AttributeName": "id", "KeyType": "RANGE"},  # Sort key
                 ],
                 AttributeDefinitions=[
-                    {"AttributeName": "path", "AttributeType": "S"},
+                    {"AttributeName": "path_", "AttributeType": "S"},
                     {"AttributeName": "id", "AttributeType": "S"},
                 ],
                 ProvisionedThroughput={
@@ -143,40 +143,6 @@ class Call:
                 err.response["Error"]["Message"],
             )
             raise
-
-    def get_calls(self, path: str, page_number: int, page_size: int):
-        """
-        Queries for calls with the module path.
-
-        :param path: Path to the module.
-        :return: The list of calls for that module.
-        """
-        page_number += 1
-        start_count = (page_number * page_size) - page_size
-        try:
-            response = self.table.query(
-                KeyConditionExpression=Key("path").eq(path),
-                Limit=start_count or page_size,
-            )
-            if page_number > 1:
-                if  "LastEvaluatedKey" in response:
-                    response = self.table.query(
-                        KeyConditionExpression=Key("path").eq(path),
-                        Limit=page_size,
-                        ExclusiveStartKey=response["LastEvaluatedKey"],
-                    )
-                else:
-                    return []
-        except ClientError as err:
-            logger.critical(
-                "Couldn't query for calls released in %s. Here's why: %s: %s",
-                path,
-                err.response["Error"]["Code"],
-                err.response["Error"]["Message"],
-            )
-            raise
-        else:
-            return response["Items"]
 
     def delete_table(self):
         """

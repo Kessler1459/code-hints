@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from function_parser.models.file import File
+from models.file import File
 from typing import TypeVar
 
 FolderType = TypeVar("FolderType", bound="Folder")

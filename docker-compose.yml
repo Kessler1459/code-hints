@@ -1,11 +1,28 @@
 version: '3.8'
 services:
   dynamodb-local:
-    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
+    #command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
+    command: "-jar DynamoDBLocal.jar -sharedDb"
     image: "amazon/dynamodb-local:latest"
     container_name: dynamodb-local
     ports:
       - "8000:8000"
-    volumes:
-      - "./docker/dynamodb:/home/dynamodblocal/data"
+    expose:
+      - "8000"
+    #volumes:
+      #- "./docker/dynamodb:/home/dynamodblocal/data"
     working_dir: /home/dynamodblocal
+  scraper:
+    depends_on:
+      - dynamodb-local
+    build: "./function_parser"
+    env_file: .env-docker
+  api:
+    build: "./api"
+    depends_on:
+      - dynamodb-local
+    env_file:
+      - .env-docker
+    command: "uvicorn --host 0.0.0.0 --port 4200 start:app"
+    ports:
+      - "4200:4200"

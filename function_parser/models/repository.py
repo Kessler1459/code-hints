@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from function_parser.models.folder import Folder
+from models.folder import Folder
 
 
 @dataclass()

@@ -4,10 +4,10 @@ from io import BytesIO
 from typing import Iterator
 from zipfile import ZipFile
 
-from function_parser.models.file import File
-from function_parser.models.folder import Folder
-from function_parser.models.repository import Repository
-from function_parser.utils.request import Request
+from models.file import File
+from models.folder import Folder
+from models.repository import Repository
+from utils.request import Request
 
 logger = logging.getLogger(__name__)
 

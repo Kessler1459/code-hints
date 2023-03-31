@@ -2,7 +2,7 @@ import time
 from dataclasses import dataclass
 from hashlib import md5
 
-from function_parser.models.file import File
+from .file import File
 
 
 @dataclass

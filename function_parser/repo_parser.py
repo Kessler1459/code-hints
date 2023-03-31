@@ -5,10 +5,10 @@ import builtins
 from ast import Attribute, ClassDef, IfExp, Import, ImportFrom, Name, Subscript, expr
 from ast import Call as AstCall
 
-from .models.call import Call
-from .models.file import File
-from .models.folder import Folder
-from .models.repository import Repository
+from models.call import Call
+from models.file import File
+from models.folder import Folder
+from models.repository import Repository
 
 logger = logging.getLogger(__name__)
 

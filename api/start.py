@@ -1,7 +1,6 @@
 import logging
 import os
 
-from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Response, status, Query
 
 from config import set_logger
@@ -10,7 +9,6 @@ from exceptions import TableNotFound
 from db.dynamo import Dynamo
 
 # ENVS
-load_dotenv()
 aws_region = os.getenv("AWSREGION")
 aws_access_key_id = os.getenv("AWSACCESSKEY")
 aws_secret_access_key = os.getenv("AWSSECRETACCESSKEY")
@@ -33,14 +31,28 @@ async def startup_event():
     db = Dynamo(aws_region, aws_access_key_id, aws_secret_access_key, aws_endpoint)
     if not db.list_tables():
         raise TableNotFound()
-    app.state.path_keys = sorted(list(db.call_table.get_partition_keys()))
+    key_list = sorted(list(db.call_table.get_partition_keys()))
+    keys = dict()
+    while key_list:
+        path = key_list.pop(0)
+        keys = tree_insert(path.split('.'), keys)
     logger.info("Database ready")
+    app.state.path_keys = keys
+
+def tree_insert(path: list, tree: dict):
+    aux_tree = tree
+    for i, key in enumerate(path):
+        key_name = key
+        if key not in aux_tree:
+            key_name = '.'.join(path[0: i + 1])
+            aux_tree[key_name] = {}
+        aux_tree = aux_tree[key_name]
+    return tree
 
 
 @app.get("/", status_code=200)
 async def home() -> Message:
     return Message(message="Try with a python module path!")
-
 
 @app.get("/calls/{module_path}")
 async def module_calls(
@@ -55,14 +67,8 @@ async def module_calls(
     return calls
 
 @app.get("/calls")
-async def module_calls(
-    page_number: int = Query(0, ge=0), page_size: int = Query(200, ge=1, le=1000)
-) -> list[str] | None:
-    key_list = app.state.path_keys
-    start = page_number * page_size
-    end = start + page_size
-    return key_list[start:end]
-
+async def module_calls() -> dict[str, dict] | None:
+    return app.state.path_keys
 
 @app.on_event("shutdown")
 def shutdown_event():

@@ -16,13 +16,13 @@ services:
     depends_on:
       - dynamodb-local
     build: "./function_parser"
-    env_file: .env-docker
+    env_file: .env
   api:
     build: "./api"
     depends_on:
       - dynamodb-local
     env_file:
-      - .env-docker
+      - .env
     command: "uvicorn --host 0.0.0.0 --port 4200 start:app"
     ports:
       - "4200:4200"

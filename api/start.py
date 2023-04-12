@@ -2,6 +2,7 @@ import logging
 import os
 
 from fastapi import Depends, FastAPI, Response, status, Query
+from fastapi.middleware.cors import CORSMiddleware
 
 from config import set_logger
 from models import Call, Message
@@ -24,6 +25,12 @@ def get_db():
 
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=['*'],
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
 
 
 @app.on_event("startup")

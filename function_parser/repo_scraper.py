@@ -31,11 +31,13 @@ class RepoScraper:
         if repo_data:
             default_branch = repo_data["default_branch"]
             html_url = repo_data["html_url"]
-            contents_folder = self._get_repo_files(html_url, repo_url, default_branch)
+            owner_name = repo_data["owner"]["login"]
+            last_commit_hash = self._get_last_commit_hash(repo_data['commits_url'])
+            contents_folder = self._get_repo_files(owner_name, repo_data["name"], last_commit_hash, html_url)
             repo = Repository(
                 repo_data["id"],
                 repo_data["name"],
-                repo_data["owner"]["login"],
+                owner_name,
                 html_url,
                 repo_url,
                 repo_data["language"],
@@ -70,17 +72,17 @@ class RepoScraper:
             page += 1
 
     def _get_repo_files(
-        self, html_url: str, repo_url: str, default_branch: str
+        self, owner_name: str, repo_name: str, commit_sha: str, html_url: str
     ) -> Folder:
-        zip_url = f"{repo_url}/zipball/{default_branch}"
+        zip_url = f"https://github.com/{owner_name}/{repo_name}/archive/{commit_sha}.zip"
         zip_response = self.session.request(zip_url)
         with ZipFile(BytesIO(zip_response.content)) as zip_file:
             return self._get_folder_from_zip(
-                zip_file, html_url, repo_url, default_branch
+                zip_file, html_url, commit_sha
             )
 
     def _get_folder_from_zip(
-        self, zip_file: ZipFile, html_url: str, repo_url: str, default_branch: str
+        self, zip_file: ZipFile, html_url: str, commit_sha: str
     ) -> Folder:
         """Parses zip file to Folder/File structure"""
         estructure = {}
@@ -95,10 +97,15 @@ class RepoScraper:
                 elif value is None and not is_folder:
                     # Not extracting unless its a python file
                     data = zip_file.read(file_name) if item.endswith(".py") else None
-                    file_url = f"{html_url}/blob/{default_branch}/{'/'.join(path[1:])}"
+                    file_url = f"{html_url}/blob/{commit_sha}/{'/'.join(path[1:])}"
                     pos[item] = File(item, file_url, data)
                 pos = pos[item]
         return next(iter(self._dict_to_folders(estructure)))
+
+    def _get_last_commit_hash(self, commits_url: str) -> str:
+        url = commits_url.replace("{/sha}", "?per_page=1")
+        res = self.session.json_request(url=url, headers=self.headers)
+        return res[0]['sha']
 
     def _dict_to_folders(self, estructure: dict) -> list[Folder]:
         """transform dict folder structure to class Folder"""
